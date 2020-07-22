@@ -36,12 +36,12 @@ int OpenGLViewer::CreateWindow() {
         return EXIT_FAILURE;
     }
     glfwMakeContextCurrent( window_ );
-    //glewExperimental = GL_TRUE;
-    //if ( GLEW_OK != glewInit( ) )
-    // {
-    //     std::cout << "Failed to initialize GLEW" << std::endl;
-    //     return EXIT_FAILURE;
-    // }
+    glewExperimental = GL_TRUE;
+    if ( GLEW_OK != glewInit( ) )
+    {
+        std::cout << "Failed to initialize GLEW" << std::endl;
+        return EXIT_FAILURE;
+    }
 
     int screen_width, screen_height;
     glfwGetFramebufferSize( window_, &screen_width, &screen_height );
@@ -93,7 +93,9 @@ int OpenGLViewer::CreateGeometries() {
         1, 2, 3  // second triangle
     };
     
+    // std::cout << "----------" << std::endl;
     glGenVertexArrays(1, &camera_quad_vao_);
+    // std::cout << "++++++++++" << std::endl;
     glGenBuffers(1, &camera_quad_vbo_);
     glGenBuffers(1, &camera_quad_ebo_);
     glBindVertexArray(camera_quad_vao_);
