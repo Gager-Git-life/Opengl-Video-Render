@@ -9,7 +9,7 @@ OpenGLViewer::OpenGLViewer():cam_render_texture_(-1),
                                  last_x_(window_width_/2.0),
                                  last_y_(window_height_/2.0f),
                                  delta_time_(0),
-                                 show_stereo_camera_(false)
+                                 show_stereo_camera_(true)
 {
     CreateWindow();
     CreateGeometries();
@@ -83,10 +83,10 @@ int OpenGLViewer::CreateGeometries() {
     // create opencv render rectangle
     float quad_vertices[] = {
         // positions          // colors           // texture coords
-        -0.5f,  -0.5f, 0.0f,   1.0f, 1.0f, 1.0f,   1.0f, 0.0f,   // top right
-        -0.5f, -1.0f, 0.0f,   1.0f, 1.0f, 1.0f,   1.0f, 1.0f,   // bottom right
+         1.0f,  1.0f, 0.0f,   1.0f, 1.0f, 1.0f,   1.0f, 0.0f,   // top right
+         1.0f, -1.0f, 0.0f,   1.0f, 1.0f, 1.0f,   1.0f, 1.0f,   // bottom right
         -1.0f, -1.0f, 0.0f,   1.0f, 1.0f, 1.0f,   0.0f, 1.0f,   // bottom left
-        -1.0f,  -0.5f, 0.0f,   1.0f, 1.0f, 1.0f,   0.0f, 0.0f    // top left
+        -1.0f,  1.0f, 0.0f,   1.0f, 1.0f, 1.0f,   0.0f, 0.0f    // top left
     };
     unsigned int quad_indices[] = {
         0, 1, 3, // first triangle
@@ -112,9 +112,10 @@ int OpenGLViewer::CreateGeometries() {
     // texture coord attribute
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
     glEnableVertexAttribArray(2);
-    glBindBuffer( GL_ARRAY_BUFFER, 0 );
-    glBindVertexArray( 0 );
-    cam_render_shader_.init("../shaders/camera_render.vs","../shaders/camera_render.fs");
+    //glBindBuffer( GL_ARRAY_BUFFER, 0 );
+    //glBindVertexArray( 0 );
+    cam_render_shader_.init("/home/gager/opengl_workspace/realtime_render/shaders/camera_render.vs", 
+                            "/home/gager/opengl_workspace/realtime_render/shaders/camera_render.fs");
     
     // create point cloud
     // glGenVertexArrays(1, &point_cloud_vao_);
@@ -190,16 +191,26 @@ int OpenGLViewer::RenderFrame(cv::Mat camera_image) {
             if (cam_render_texture_==-1)
                 glGenTextures(1, &cam_render_texture_);
             glBindTexture(GL_TEXTURE_2D, cam_render_texture_);
+
+            // set the texture wrapping parameters
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);       
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+            // set texture filtering parameters
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_BGR, GL_UNSIGNED_BYTE, data);
             glGenerateMipmap(GL_TEXTURE_2D);
+            cam_render_shader_.use();
+            cam_render_shader_.setInt("ourTexture", 0);
         }
 
         // render scene
         glClearColor( 0.0f, 0.0f, 0.0f, 1.0f );
         glClear( GL_COLOR_BUFFER_BIT );
 
-        glDisable(GL_DEPTH_TEST);
-        glEnable(GL_BLEND);
+        // glDisable(GL_DEPTH_TEST);
+        // glEnable(GL_BLEND);
         //glBlendFunc(GL_ONE, GL_ONE);
         // point_cloud_shader_.use();
         // glBindVertexArray( point_cloud_vao_ );
@@ -214,16 +225,21 @@ int OpenGLViewer::RenderFrame(cv::Mat camera_image) {
         // glBufferData(GL_ARRAY_BUFFER, xyz_color_points.size()*sizeof(cv::Vec3f), &xyz_color_points.front(), GL_STREAM_DRAW);
         // glPointSize(3.5);
         // glDrawArrays(GL_POINTS, 0, xyz_color_points.size()/2);
-        glBindVertexArray( 0 );
-        glDisable(GL_BLEND);
+        // glBindVertexArray( 0 );
+        // glDisable(GL_BLEND);
         //glEnable(GL_DEPTH_TEST);
+        float params[4];
+        float tone=0.8, beauty=0.7, bright=0.9;
         if (show_stereo_camera_) {
-            cam_render_shader_.use();
             glActiveTexture(GL_TEXTURE0); // activate the texture unit first before binding texture
             glBindTexture(GL_TEXTURE_2D, cam_render_texture_);
+            cam_render_shader_.use();
+            cam_render_shader_.setInt("width", 800);
+            cam_render_shader_.setInt("height", 600);
+            cam_render_shader_.setVec4f("params", 1.0 - 0.6 * beauty, 1.0 - 0.3 * beauty, 0.1 + 0.3 * tone, 0.1 + 0.3 * tone);
+            cam_render_shader_.setFloat("brightness", 0.6 * (-0.5 + bright));
             glBindVertexArray( camera_quad_vao_ );
             glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-            glBindVertexArray( 0 );
         }
         glfwSwapBuffers( window_ );
         glfwPollEvents( );

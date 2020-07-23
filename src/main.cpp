@@ -24,7 +24,6 @@ int main( int argc, const char** argv )
         else {
             //std::tuple<cv::Mat,cv::Mat> point_cloud = stereo_processor.CalcPointCloud(frame);
             // returns a points list and an image
-            std::cout << "kkk" << std::endl;
             viewer.RenderFrame(frame);
         }
         key = (char)cv::waitKey(11);

@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include<string>
+#include <string>
 
 class Shader
 {
