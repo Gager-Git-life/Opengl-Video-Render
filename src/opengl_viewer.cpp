@@ -1,8 +1,8 @@
 #include "opengl_viewer.hpp"
 
 
-
 OpenGLViewer::OpenGLViewer():cam_render_texture_(-1),
+                                sub_render_texture_(-1),
                                  window_width_(800),
                                  window_height_(600),
                                  first_mouse_(true),
@@ -13,6 +13,8 @@ OpenGLViewer::OpenGLViewer():cam_render_texture_(-1),
 {
     CreateWindow();
     CreateGeometries();
+    CreateShader("/home/gager/opengl_workspace/realtime_render/shaders/camera_render.vs",
+                "/home/gager/opengl_workspace/realtime_render/shaders/camera_render.fs");
 }
 
 
@@ -112,23 +114,111 @@ int OpenGLViewer::CreateGeometries() {
     // texture coord attribute
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
     glEnableVertexAttribArray(2);
-    //glBindBuffer( GL_ARRAY_BUFFER, 0 );
-    //glBindVertexArray( 0 );
-    cam_render_shader_.init("/home/gager/opengl_workspace/realtime_render/shaders/camera_render.vs", 
-                            "/home/gager/opengl_workspace/realtime_render/shaders/camera_render.fs");
+
+    return 0;
+}
+
+void OpenGLViewer::CreateShader(std::string vertexPath, std::string fragmentPath){
+
+    int result = cam_render_shader_.init(vertexPath, fragmentPath);
+    if(result){
+        load_shader_over = true;
+    }
+    else{
+        load_shader_over = false;
+    } 
+}
+
+void OpenGLViewer::Load_Texture(texture_config &texture){
+
+    if (!texture.image.empty()) {
+        unsigned char *data = texture.image.ptr();
+        int nrChannels = texture.image.channels();
+        int width = texture.image.cols;
+        int height = texture.image.rows;
+        if (texture.texture_num==-1)
+            glGenTextures(1, &texture.texture_num);
+        glBindTexture(GL_TEXTURE_2D, texture.texture_num);
+
+        // set the texture wrapping parameters
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);       
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        // set texture filtering parameters
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+        if(texture.Types == "RGB"){
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_BGR, GL_UNSIGNED_BYTE, data);
+        }
+        else{
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+        }
+        glGenerateMipmap(GL_TEXTURE_2D);
+        cam_render_shader_.use();
+        cam_render_shader_.setInt(texture.texture_name, texture.nums);
+    }
+}
+
+void OpenGLViewer::Control_Texture(){
+
+    float params[4];
+    float tone=0.8, beauty=0.7, bright=0.9;
+
+    glActiveTexture(GL_TEXTURE0); // activate the texture unit first before binding texture
+    glBindTexture(GL_TEXTURE_2D, cam_render_texture_);
+    cam_render_shader_.use();
+    cam_render_shader_.setInt("width", 800);
+    cam_render_shader_.setInt("height", 600);
+    cam_render_shader_.setVec4f("params", 1.0 - 0.6 * beauty, 1.0 - 0.3 * beauty, 0.1 + 0.3 * tone, 0.1 + 0.3 * tone);
+    cam_render_shader_.setFloat("brightness", 0.6 * (-0.5 + bright));
+    glBindVertexArray( camera_quad_vao_ );
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+}
+
+int OpenGLViewer::RenderFrame(cv::Mat camera_image) {
     
-    // create point cloud
-    // glGenVertexArrays(1, &point_cloud_vao_);
-    // glGenBuffers(1, &point_cloud_vbo_);
-    // glBindVertexArray(point_cloud_vao_);
-    // glBindBuffer(GL_ARRAY_BUFFER, point_cloud_vbo_);
-    // glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
-    // glEnableVertexAttribArray(0);
-    // glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-    // glEnableVertexAttribArray(1);
-    // glBindBuffer( GL_ARRAY_BUFFER, 0 );
-    // glBindVertexArray( 0 );
-    // point_cloud_shader_.init("point_cloud.vs","point_cloud.fs");
+    if (glfwGetKey(window_, GLFW_KEY_ESCAPE ) != GLFW_PRESS)
+    {
+        float current_frame_time = glfwGetTime();
+        delta_time_ = current_frame_time - last_frame_time_;
+        last_frame_time_ = current_frame_time;
+        ProcessInput();
+
+        camera_texture.image = camera_image;
+        Load_Texture(camera_texture);
+
+        if(decorate_texture != "null"){
+            cv::Mat image = cv::imread(decorate_texture, -1);
+            sub_texture.image = image;
+            Load_Texture(sub_texture);
+        }
+
+        // render scene
+        glClearColor( 0.0f, 0.0f, 0.0f, 1.0f );
+        glClear( GL_COLOR_BUFFER_BIT );
+
+        // float params[4];
+        // float tone=0.8, beauty=0.7, bright=0.9;
+        // if (show_stereo_camera_) {
+        //     glActiveTexture(GL_TEXTURE0); // activate the texture unit first before binding texture
+        //     glBindTexture(GL_TEXTURE_2D, cam_render_texture_);
+        //     cam_render_shader_.use();
+        //     cam_render_shader_.setInt("width", 800);
+        //     cam_render_shader_.setInt("height", 600);
+        //     cam_render_shader_.setVec4f("params", 1.0 - 0.6 * beauty, 1.0 - 0.3 * beauty, 0.1 + 0.3 * tone, 0.1 + 0.3 * tone);
+        //     cam_render_shader_.setFloat("brightness", 0.6 * (-0.5 + bright));
+        //     glBindVertexArray( camera_quad_vao_ );
+        //     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+        // }
+        Control_Texture();
+
+        glfwSwapBuffers( window_ );
+        glfwPollEvents( );
+    }
+    else {
+        glfwSetInputMode(window_, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+        return -1;
+    }
     return 0;
 }
 
@@ -148,107 +238,6 @@ void OpenGLViewer::ProcessInput()
         camera_->ProcessKeyboard(Camera_Movement::UP, delta_time_);
     if (glfwGetKey(window_, GLFW_KEY_P) == GLFW_PRESS)
         camera_->ProcessKeyboard(Camera_Movement::DOWN, delta_time_);
-}
-
-int OpenGLViewer::RenderFrame(cv::Mat camera_image) {
-    
-    if (glfwGetKey(window_, GLFW_KEY_ESCAPE ) != GLFW_PRESS)
-    {
-        float current_frame_time = glfwGetTime();
-        delta_time_ = current_frame_time - last_frame_time_;
-        last_frame_time_ = current_frame_time;
-        ProcessInput();
-        //populate points and colors with image colors
-        // std::vector<cv::Vec3f> xyz_color_points;
-        // for (int i = 0; i < point_cloud.rows; i++)
-        // {
-        //     cv::Vec3f* pLig = (cv::Vec3f*)(point_cloud.ptr(i));
-        //     for (int j = 0; j < point_cloud.cols ; j++, pLig++)
-        //     {
-        //         //if (pLig[0][2] < 10000 )
-        //         {
-        //             cv::Vec3f p1(pLig[0][0], -pLig[0][1], -pLig[0][2]);
-        //             const double max_z = 3;
-        //             const double min_z = 0.1;
-        //             //if ((fabs(p1[2]) < max_z) && (fabs(p1[2]) > min_z))
-        //             {
-        //                 xyz_color_points.push_back(p1);
-        //                 cv::Vec3b color = camera_image.at<cv::Vec3b>(i, j);
-        //                 float col2 = ((int)camera_image.at<cv::Vec3b>(cv::Point(j, i))[0])/255.0;
-        //                 float col1 = ((int)camera_image.at<cv::Vec3b>(cv::Point(j, i))[1])/255.0;
-        //                 float col0 = ((int)camera_image.at<cv::Vec3b>(cv::Point(j, i))[2])/255.0;
-        //                 xyz_color_points.push_back(cv::Vec3f(col0,col1,col2));
-        //             }
-        //         }
-        //     }
-        // }
-        image = camera_image;
-        if (!camera_image.empty()) {
-            unsigned char *data = camera_image.ptr();
-            int nrChannels = camera_image.channels();
-            int width = camera_image.cols;
-            int height = camera_image.rows;
-            if (cam_render_texture_==-1)
-                glGenTextures(1, &cam_render_texture_);
-            glBindTexture(GL_TEXTURE_2D, cam_render_texture_);
-
-            // set the texture wrapping parameters
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);       
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-            // set texture filtering parameters
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_BGR, GL_UNSIGNED_BYTE, data);
-            glGenerateMipmap(GL_TEXTURE_2D);
-            cam_render_shader_.use();
-            cam_render_shader_.setInt("ourTexture", 0);
-        }
-
-        // render scene
-        glClearColor( 0.0f, 0.0f, 0.0f, 1.0f );
-        glClear( GL_COLOR_BUFFER_BIT );
-
-        // glDisable(GL_DEPTH_TEST);
-        // glEnable(GL_BLEND);
-        //glBlendFunc(GL_ONE, GL_ONE);
-        // point_cloud_shader_.use();
-        // glBindVertexArray( point_cloud_vao_ );
-        // glm::mat4 model = glm::mat4(1.0f);
-        // glm::mat4 view = camera_->GetViewMatrix();
-        // glm::mat4 projection = glm::perspective(glm::radians(camera_->getZoom()), (float)window_width_ / (float)window_height_, 0.1f, 1000.0f);
-        // point_cloud_shader_.setMat4f("projection", glm::value_ptr(projection));
-        // point_cloud_shader_.setMat4f("view", glm::value_ptr(view));
-        // point_cloud_shader_.setMat4f("model", glm::value_ptr(model));
-        
-        // glBindBuffer(GL_ARRAY_BUFFER, point_cloud_vbo_);
-        // glBufferData(GL_ARRAY_BUFFER, xyz_color_points.size()*sizeof(cv::Vec3f), &xyz_color_points.front(), GL_STREAM_DRAW);
-        // glPointSize(3.5);
-        // glDrawArrays(GL_POINTS, 0, xyz_color_points.size()/2);
-        // glBindVertexArray( 0 );
-        // glDisable(GL_BLEND);
-        //glEnable(GL_DEPTH_TEST);
-        float params[4];
-        float tone=0.8, beauty=0.7, bright=0.9;
-        if (show_stereo_camera_) {
-            glActiveTexture(GL_TEXTURE0); // activate the texture unit first before binding texture
-            glBindTexture(GL_TEXTURE_2D, cam_render_texture_);
-            cam_render_shader_.use();
-            cam_render_shader_.setInt("width", 800);
-            cam_render_shader_.setInt("height", 600);
-            cam_render_shader_.setVec4f("params", 1.0 - 0.6 * beauty, 1.0 - 0.3 * beauty, 0.1 + 0.3 * tone, 0.1 + 0.3 * tone);
-            cam_render_shader_.setFloat("brightness", 0.6 * (-0.5 + bright));
-            glBindVertexArray( camera_quad_vao_ );
-            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-        }
-        glfwSwapBuffers( window_ );
-        glfwPollEvents( );
-    }
-    else {
-        glfwSetInputMode(window_, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-        return -1;
-    }
-    return 0;
 }
 
 void OpenGLViewer::terminate() {

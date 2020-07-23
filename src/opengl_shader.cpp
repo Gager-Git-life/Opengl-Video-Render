@@ -1,75 +1,42 @@
 #include "opengl_shader.hpp"
 
-#include <fstream>
-#include <sstream>
-#include <iostream>
-#include <GL/glew.h>
-#include <GLFW/glfw3.h>
+// #define _GLIBCXX_USE_CXX11_ABI 1
 
 Shader::Shader() {
+
 }
 
-void Shader::init(const char* vertexPath, const char* fragmentPath)
-{
-    // 1. retrieve the vertex/fragment source code from filePath
-    std::string vertexCode;
-    std::string fragmentCode;
-    std::ifstream vShaderFile;
-    std::ifstream fShaderFile;
-    // ensure ifstream objects can throw exceptions:
-    vShaderFile.exceptions (std::ifstream::failbit | std::ifstream::badbit);
-    fShaderFile.exceptions (std::ifstream::failbit | std::ifstream::badbit);
-    try
-    {
-        // open files
-        vShaderFile.open(vertexPath);
-        fShaderFile.open(fragmentPath);
-        std::stringstream vShaderStream, fShaderStream;
-        // read file's buffer contents into streams
-        vShaderStream << vShaderFile.rdbuf();
-        // while(!vShaderFile.eof()) vShaderFile.get();
-        fShaderStream << fShaderFile.rdbuf();
-        // while(!fShaderFile.eof()) fShaderFile.get();
-        // close file handlers
-        vShaderFile.close();
-        fShaderFile.close();
-        // convert stream into string
-        vertexCode   = vShaderStream.str();
-        fragmentCode = fShaderStream.str();
+std::string Shader::read_shader_file(const char* FilePath){
+    
+    std::string ShaderCode = "##";
+    std::ifstream ShaderFile;
+    ShaderFile.exceptions (std::ifstream::failbit | std::ifstream::badbit);
+    try{
+        ShaderFile.open(FilePath);
+        std::stringstream ShaderStream;
+        ShaderStream << ShaderFile.rdbuf();
+        ShaderFile.close();
+        ShaderCode = ShaderStream.str();
     }
-    catch (std::ifstream::failure &e)
-    {
+    catch (std::ifstream::failure &e){
         std::cout << "ERROR::SHADER::FILE_NOT_SUCCESFULLY_READ" << std::endl;
         std::cout << e.what() << std::endl;
     
     }
-    const char* vShaderCode = vertexCode.c_str();
-    const char * fShaderCode = fragmentCode.c_str();
 
-    // const char* vShaderCode = 
-    //     "#version 330 core \n"
-    //     "layout (location = 0) in vec3 aPos; \n"
-    //     "layout (location = 1) in vec3 aCol; \n"
-    //     "layout (location = 2) in vec2 aTexCoord; \n"
-    //     "\n"
-    //     "out vec2 TexCoord; \n"
-    //     "\n"
-    //     "void main() \n"
-    //     "{ \n"
-    //     "    gl_Position = vec4(aPos, 1.0); \n"
-    //     "    TexCoord = aTexCoord; \n"
-    //     "}";
-    // const char * fShaderCode = 
-    //     "#version 330 core \n"
-    //     "\n"
-    //     "out vec4 FragColor; \n"
-    //     "in vec2 TexCoord; \n"
-    //     "uniform sampler2D ourTexture; \n"
-    //     "\n"
-    //     "void main() \n"
-    //     "{ \n"
-    //     "    FragColor = texture(ourTexture, TexCoord); \n"
-    //     "}";
+    return ShaderCode;
+}
+
+int Shader::init(std::string vertexPath, std::string fragmentPath)
+{
+
+    vertexCode = read_shader_file(vertexPath.c_str());
+    fragmentCode = read_shader_file(fragmentPath.c_str());
+    if(vertexCode == "##" || fragmentCode == "##"){
+        return -1;
+    }
+    const char * vShaderCode = vertexCode.c_str();
+    const char * fShaderCode = fragmentCode.c_str();
 
     // 2. compile shaders
     unsigned int vertex, fragment;
@@ -92,6 +59,7 @@ void Shader::init(const char* vertexPath, const char* fragmentPath)
     // delete the shaders as they're linked into our program now and no longer necessary
     glDeleteShader(vertex);
     glDeleteShader(fragment);
+    return 0;
 }
 
 void Shader::use()

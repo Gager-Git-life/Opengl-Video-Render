@@ -14,7 +14,6 @@ int main( int argc, const char** argv )
     }
 
     OpenGLViewer viewer;
-    //StereoPairProcessor stereo_processor("intrinsics.yml","extrinsics.yml");
     cv::Mat frame;
     char key = -1;
     while (key != 27 && !viewer.ShouldClose()) {
@@ -22,8 +21,6 @@ int main( int argc, const char** argv )
         if (frame.empty())
             break;
         else {
-            //std::tuple<cv::Mat,cv::Mat> point_cloud = stereo_processor.CalcPointCloud(frame);
-            // returns a points list and an image
             viewer.RenderFrame(frame);
         }
         key = (char)cv::waitKey(11);
