@@ -1,5 +1,4 @@
-#opencv+opengl实时渲染
+#opencv+opengl+UltraFace+Pfld==>实时美颜渲染以及瘦脸大眼
 
 ##使用
-*1.python compile.py src/main.cpp*
-*2./out*
+*./auto.sh*
