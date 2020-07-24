@@ -197,19 +197,7 @@ int OpenGLViewer::RenderFrame(cv::Mat camera_image) {
         glClearColor( 0.0f, 0.0f, 0.0f, 1.0f );
         glClear( GL_COLOR_BUFFER_BIT );
 
-        // float params[4];
-        // float tone=0.8, beauty=0.7, bright=0.9;
-        // if (show_stereo_camera_) {
-        //     glActiveTexture(GL_TEXTURE0); // activate the texture unit first before binding texture
-        //     glBindTexture(GL_TEXTURE_2D, cam_render_texture_);
-        //     cam_render_shader_.use();
-        //     cam_render_shader_.setInt("width", 800);
-        //     cam_render_shader_.setInt("height", 600);
-        //     cam_render_shader_.setVec4f("params", 1.0 - 0.6 * beauty, 1.0 - 0.3 * beauty, 0.1 + 0.3 * tone, 0.1 + 0.3 * tone);
-        //     cam_render_shader_.setFloat("brightness", 0.6 * (-0.5 + bright));
-        //     glBindVertexArray( camera_quad_vao_ );
-        //     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-        // }
+        // params input
         Control_Texture();
 
         glfwSwapBuffers( window_ );
